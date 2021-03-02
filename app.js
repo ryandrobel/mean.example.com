@@ -4,10 +4,12 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var mongoose = require('mongoose');
-//~line 7 after mongoose
 var session = require('express-session');
 var MongoStore = require('connect-mongo')(session);
 var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
+
+var Users = require('./models/users');
 
 
 
@@ -51,6 +53,7 @@ app.use(require('express-session')({
     maxAge:3600000 //1 hour
   }
 }));
+passport.use(Users.createStrategy());
 passport.serializeUser(function(user, done){
   done(null,{
     id: user._id,
