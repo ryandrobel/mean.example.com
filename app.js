@@ -11,6 +11,10 @@ var app = express();
 var apiUsersRouter = require('./routes/api/users');
 var config = require('./config.dev');
 var mongoose = require('mongoose');
+//~line 7 after mongoose
+var session = require('express-session');
+var MongoStore = require('connect-mongo')(session);
+var passport = require('passport');
 
 //Test the file
 console.log(config);
