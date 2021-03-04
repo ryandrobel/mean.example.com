@@ -53,6 +53,8 @@ app.use(require('express-session')({
     maxAge:3600000 //1 hour
   }
 }));
+app.use(passport.initialize());
+app.use(passport.session());
 passport.use(Users.createStrategy());
 passport.serializeUser(function(user, done){
   done(null,{
@@ -73,7 +75,7 @@ app.use(function(req,res,next){
   res.locals.session = req.session;
   next();
 });
-//~line 78
+
 //Session-based access control
 app.use(function(req,res,next){
   //Uncomment the following line to allow access to everything.
@@ -121,8 +123,7 @@ app.use(function(req,res,next){
   return res.redirect('/auth#login');
 });
 
-app.use(passport.initialize());
-app.use(passport.session());
+
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
