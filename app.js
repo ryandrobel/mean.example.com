@@ -67,6 +67,11 @@ passport.serializeUser(function(user, done){
 passport.deserializeUser(function(user, done){
   done(null, user);
 });
+//working with session data
+app.use(function(req,res,next){
+  res.locals.session = req.session;
+  next();
+});
 app.use(passport.initialize());
 app.use(passport.session());
 
