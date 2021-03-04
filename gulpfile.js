@@ -58,13 +58,14 @@ gulp.task('build-users-js', function() {
   return merge(userApp);
 });
 
-//~line 76
+
 //Compile all JS tasks
 gulp.task('build-js', gulp.series(
   'build-main-js',
   'build-auth-js',
   'build-users-js'
 ));
+
 //Recompile SCSS/JS on save
 gulp.task('watch', function(){
   gulp.watch('./src/scss/**/*.scss', gulp.series('build-css'));
