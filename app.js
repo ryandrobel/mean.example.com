@@ -3,27 +3,41 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-var mongoose = require('mongoose');
-var session = require('express-session');
-var MongoStore = require('connect-mongo')(session);
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
 
+//Require models
 var Users = require('./models/users');
 
-var authRouter = require('./routes/auth');
 var apiAuthRouter = require('./routes/api/auth');
+var apiUsersRouter = require('./routes/api/users');
+var authRouter = require('./routes/auth');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
 var app = express();
+
+if(process.env.NODE_ENV==='production'){
+  var config = require('../config.prod');
+}else{
+  var config = require('./config.dev');
+}
+
+var mongoose = require('mongoose');
+var session = require('express-session');
+var MongoStore = require('connect-mongo')(session);
+
+var indexRouter = require('./routes/index');
+var usersRouter = require('./routes/users');
+var articlesRouter = require('./routes/articles');
+var cmsRouter = require('./routes/cms');
+
 var apiUsersRouter = require('./routes/api/users');
-var config = require('./config.dev');
+var apiArticlesRouter = require('./routes/api/articles');
 
 
-//Test the file
-console.log(config);
-//Connect to MongoDB
+var app = express();
+
 mongoose.connect(config.mongodb, { useNewUrlParser: true });
 
 // view engine setup
@@ -41,21 +55,20 @@ app.use(require('express-session')({
   store: new MongoStore({
     mongooseConnection: mongoose.connection
   }),
-  //Set the secret
   secret: config.session.secret,
   resave: false,
   saveUninitialized: false,
   cookie: {
     path: '/',
     domain: config.cookie.domain,
-    //httpOnly: true,
-    //secure: true,
-    maxAge:3600000 //1 hour
-  }
+    maxAge: 1000 * 60 * 24 // 24 hours
+    }
 }));
+
 app.use(passport.initialize());
 app.use(passport.session());
 passport.use(Users.createStrategy());
+
 passport.serializeUser(function(user, done){
   done(null,{
     id: user._id,
@@ -65,71 +78,87 @@ passport.serializeUser(function(user, done){
     last_name: user.last_name
   });
 });
+//Set up CORS
+app.use(function(req, res, next) {
+  res.header('Access-Control-Allow-Credentials', true);
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
+  if ('OPTIONS' == req.method) {
+    res.send(200);
+  } else {
+    next();
+  }
+});
 
 passport.deserializeUser(function(user, done){
   done(null, user);
 });
 
-//working with session data
+//Setup view variables
 app.use(function(req,res,next){
-  res.locals.session = req.session;
+  var userSession={};
+
+  if(req.isAuthenticated()){
+    userSession = req.session.passport.user;
+  }
+
+  req.app.locals = {
+    session: {
+      user: userSession
+    }
+  }
+
   next();
 });
 
-//Session-based access control
+//Session based access control
 app.use(function(req,res,next){
-  //Uncomment the following line to allow access to everything.
-  //return next();
+  //Skip the Whitelist for debug and dev. (Angular)
+  // return next();
 
-  //Allow any endpoint that is an exact match. The server does not
-  //have access to the hash so /auth and /auth#xxx would bot be considered 
-  //exact matches.
   var whitelist = [
     '/',
-    '/auth'
-  ];
+    '/favicon.ico',
+    '/users/login',
+    '/users/register'
+    ];
 
-  //req.url holds the current URL
-  //indexOf() returns the index of the matching array element
-  //-1, in this context means not found in the array
-  //so if NOT -1 means is found in the whitelist
-  //return next(); stops execution and grants access
   if(whitelist.indexOf(req.url) !== -1){
     return next();
   }
 
-  //Allow access to dynamic endpoints
+  //Allow access to dynamic end points
   var subs = [
-    '/public/',
-    '/api/auth/'
+    '/public',
+    '/articles'
   ];
 
-  //The query string provides a partial URL match beginning
-  //at position 0. Both /api/auth/login and /api/auth/logout would would 
-  //be considered a match for /api/auth/
   for(var sub of subs){
     if(req.url.substring(0, sub.length)===sub){
       return next();
     }
   }
 
-  //There is an active user session, allow access to all endpoints.
   if(req.isAuthenticated()){
     return next();
   }
 
-  //There is no session nor are there any whitelist matches. Deny access and
-  //Redirect the user to the login screen.
-  return res.redirect('/auth#login');
+//  return res.redirect('/auth#login');
+  return res.redirect('/users/login');
 });
 
-
+// 
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/auth', authRouter);
-app.use('/api/auth', apiAuthRouter);
+app.use('/articles', articlesRouter);
+
+app.use('/cms', cmsRouter);
 app.use('/api/users', apiUsersRouter);
+app.use('/api/articles', apiArticlesRouter);
+
+
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
